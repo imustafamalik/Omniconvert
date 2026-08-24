@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omniconvert — High-Performance Media Converter & URL Downloader</title>
+  <meta name="description" content="Convert local audio and video files or download and transcode content from YouTube, Vimeo, social media, and direct web links with precision FFmpeg encoding.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="app-background">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo-icon">
+          <i data-lucide="zap"></i>
+        </div>
+        <div class="brand-text">
+          <h1>Omniconvert <span class="badge-pro">STUDIO</span></h1>
+          <p>Universal Media Transcoder & URL Extractor</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <div class="status-chip chip-engine" id="engineStatusChip">
+          <span class="status-dot"></span>
+          <span id="engineStatusText">FFmpeg 7.1 Ready</span>
+        </div>
+        <div class="status-chip chip-limit">
+          <i data-lucide="shield-check" class="chip-icon"></i>
+          <span>500MB Max • Safe Sandbox</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace-grid">
+      
+      <!-- Left Column: Source Selection & Preview -->
+      <section class="card source-card">
+        <div class="card-header">
+          <h2><i data-lucide="layers" class="title-icon"></i> 1. Select Media Source</h2>
+          <div class="source-tabs">
+            <button class="tab-btn active" id="tabUpload" data-tab="upload">
+              <i data-lucide="upload-cloud"></i> Upload File
+            </button>
+            <button class="tab-btn" id="tabUrl" data-tab="url">
+              <i data-lucide="link"></i> Paste URL
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Upload Tab Content -->
+          <div class="tab-content active" id="uploadTabContent">
+            <div class="drop-zone" id="dropZone">
+              <input type="file" id="fileInput" class="file-input-hidden" accept="video/*,audio/*,.mkv,.flac,.ogg,.mov,.avi,.webm,.mp4,.mp3,.wav,.aac,.m4a">
+              <div class="drop-zone-content">
+                <div class="upload-icon-wrapper">
+                  <i data-lucide="cloud-upload" class="upload-main-icon"></i>
+                </div>
+                <h3>Drag & Drop your audio or video file</h3>
+                <p class="drop-hint">Supports MP4, MOV, WebM, MKV, MP3, WAV, FLAC, AAC & more (up to 500MB)</p>
+                <button type="button" class="btn btn-secondary" id="browseFileBtn">
+                  <i data-lucide="folder-open"></i> Browse Local Files
+                </button>
+              </div>
+            </div>
+
+            <!-- Upload Progress Bar (during initial transfer) -->
+            <div class="upload-progress-container hidden" id="uploadProgressContainer">
+              <div class="progress-info-row">
+                <span class="progress-label" id="uploadProgressLabel">Uploading & verifying file signature...</span>
+                <span class="progress-value" id="uploadProgressVal">0%</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-bar" id="uploadProgressBar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- URL Tab Content -->
+          <div class="tab-content" id="urlTabContent">
+            <div class="url-input-box">
+              <div class="input-wrapper">
+                <i data-lucide="globe" class="input-icon"></i>
+                <input type="url" id="urlInput" placeholder="Paste YouTube, Vimeo, TikTok, Twitter, SoundCloud or media URL..." autocomplete="off">
+                <button type="button" class="btn btn-sm btn-subtle" id="pasteClipboardBtn" title="Paste from clipboard">
+                  <i data-lucide="clipboard"></i> Paste
+                </button>
+              </div>
+              <button type="button" class="btn btn-primary btn-fetch" id="fetchUrlBtn">
+                <i data-lucide="sparkles"></i> Fetch Info
+              </button>
+            </div>
+            
+            <div class="supported-platforms-pills">
+              <span>Supported:</span>
+              <span class="platform-tag">YouTube</span>
+              <span class="platform-tag">Vimeo</span>
+              <span class="platform-tag">TikTok</span>
+              <span class="platform-tag">Twitter / X</span>
+              <span class="platform-tag">SoundCloud</span>
+              <span class="platform-tag">Direct Video/Audio Links</span>
+            </div>
+          </div>
+
+          <!-- Source Media Loaded Card (for both Upload and URL) -->
+          <div class="source-preview-card hidden" id="sourcePreviewCard">
+            <div class="preview-header">
+              <div class="preview-type-badge" id="previewTypeBadge">
+                <i data-lucide="video" id="previewTypeIcon"></i>
+                <span id="previewTypeText">Video</span>
+              </div>
+              <button type="button" class="btn-icon-danger" id="clearSourceBtn" title="Remove and choose another file">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+
+            <div class="preview-body">
+              <!-- Thumbnail or Player -->
+              <div class="preview-media-container" id="previewMediaContainer">
+                <img id="sourceThumbnailImg" class="preview-thumb hidden" alt="Video thumbnail">
+                <video id="sourceVideoPlayer" class="preview-player hidden" controls playsinline preload="metadata"></video>
+                <audio id="sourceAudioPlayer" class="preview-player hidden" controls preload="metadata"></audio>
+              </div>
+
+              <div class="preview-meta-details">
+                <h4 class="preview-title" id="sourceMediaTitle">Filename.mp4</h4>
+                <div class="meta-chips-row">
+                  <div class="meta-chip" id="metaSizeChip">
+                    <i data-lucide="hard-drive"></i> <span id="metaSizeVal">-- MB</span>
+                  </div>
+                  <div class="meta-chip" id="metaDurationChip">
+                    <i data-lucide="clock"></i> <span id="metaDurationVal">--:--</span>
+                  </div>
+                  <div class="meta-chip" id="metaFormatChip">
+                    <i data-lucide="file-check"></i> <span id="metaFormatVal">--</span>
+                  </div>
+                  <div class="meta-chip" id="metaResolutionChip">
+                    <i data-lucide="monitor"></i> <span id="metaResolutionVal">--</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Right Column: Conversion Settings Matrix & Execution -->
+      <section class="card options-card">
+        <div class="card-header">
+          <h2><i data-lucide="sliders" class="title-icon"></i> 2. Conversion Options</h2>
+          <div class="format-category-filters">
+            <button class="filter-pill active" data-category="all">All</button>
+            <button class="filter-pill" data-category="audio">Audio</button>
+            <button class="filter-pill" data-category="video">Video</button>
+            <button class="filter-pill" data-category="animation">GIF</button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Target Format Grid -->
+          <div class="form-group">
+            <label class="form-label">Target Output Format</label>
+            <div class="format-grid" id="formatGrid">
+              <!-- Audio Formats -->
+              <button type="button" class="format-pill active" data-format="mp3" data-category="audio">
+                <span class="fmt-name">MP3</span>
+                <span class="fmt-sub">Universal Audio</span>
+              </button>
+              <button type="button" class="format-pill" data-format="wav" data-category="audio">
+                <span class="fmt-name">WAV</span>
+                <span class="fmt-sub">Lossless Studio</span>
+              </button>
+              <button type="button" class="format-pill" data-format="aac" data-category="audio">
+                <span class="fmt-name">AAC</span>
+                <span class="fmt-sub">Apple / High-Fi</span>
+              </button>
+              <button type="button" class="format-pill" data-format="flac" data-category="audio">
+                <span class="fmt-name">FLAC</span>
+                <span class="fmt-sub">Lossless Hi-Res</span>
+              </button>
+              <button type="button" class="format-pill" data-format="ogg" data-category="audio">
+                <span class="fmt-name">OGG</span>
+                <span class="fmt-sub">Vorbis Web</span>
+              </button>
+              <button type="button" class="format-pill" data-format="m4a" data-category="audio">
+                <span class="fmt-name">M4A</span>
+                <span class="fmt-sub">ALAC / MPEG-4</span>
+              </button>
+
+              <!-- Video Formats -->
+              <button type="button" class="format-pill" data-format="mp4" data-category="video">
+                <span class="fmt-name">MP4</span>
+                <span class="fmt-sub">H.264 / Universal</span>
+              </button>
+              <button type="button" class="format-pill" data-format="webm" data-category="video">
+                <span class="fmt-name">WebM</span>
+                <span class="fmt-sub">VP9 / Web Video</span>
+              </button>
+              <button type="button" class="format-pill" data-format="mov" data-category="video">
+                <span class="fmt-name">MOV</span>
+                <span class="fmt-sub">QuickTime Pro</span>
+              </button>
+              <button type="button" class="format-pill" data-format="mkv" data-category="video">
+                <span class="fmt-name">MKV</span>
+                <span class="fmt-sub">Matroska Container</span>
+              </button>
+
+              <!-- GIF Animation -->
+              <button type="button" class="format-pill" data-format="gif" data-category="animation">
+                <span class="fmt-name">GIF</span>
+                <span class="fmt-sub">2-Pass Palettegen</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Video Options Accordion (Active when video format selected) -->
+          <div class="options-panel-section" id="videoOptionsSection">
+            <h4 class="section-title"><i data-lucide="film"></i> Video Tuning</h4>
+            <div class="settings-grid">
+              <div class="form-group">
+                <label class="form-label" for="videoResolutionSelect">Resolution</label>
+                <select id="videoResolutionSelect" class="form-select">
+                  <option value="original" selected>Original (Match Source)</option>
+                  <option value="4k">4K Ultra HD (3840x2160)</option>
+                  <option value="1080p">1080p Full HD (1920x1080)</option>
+                  <option value="720p">720p HD (1280x720)</option>
+                  <option value="480p">480p SD (854x480)</option>
+                  <option value="360p">360p Compact (640x360)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="videoCodecSelect">Video Codec</label>
+                <select id="videoCodecSelect" class="form-select">
+                  <option value="libx264" selected>H.264 (Maximum Compatibility)</option>
+                  <option value="libx265">H.265 / HEVC (High Efficiency)</option>
+                  <option value="libvpx-vp9">VP9 (Modern Web Video)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="videoFpsSelect">Frame Rate</label>
+                <select id="videoFpsSelect" class="form-select">
+                  <option value="" selected>Original FPS</option>
+                  <option value="60">60 FPS (Ultra Smooth)</option>
+                  <option value="30">30 FPS (Standard)</option>
+                  <option value="24">24 FPS (Cinematic)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio Options Section -->
+          <div class="options-panel-section" id="audioOptionsSection">
+            <h4 class="section-title"><i data-lucide="music"></i> Audio Tuning</h4>
+            <div class="settings-grid">
+              <div class="form-group">
+                <label class="form-label" for="audioBitrateSelect">Audio Bitrate</label>
+                <select id="audioBitrateSelect" class="form-select">
+                  <option value="320k" selected>320 kbps (Studio Master)</option>
+                  <option value="256k">256 kbps (High Fidelity)</option>
+                  <option value="192k">192 kbps (Standard Quality)</option>
+                  <option value="128k">128 kbps (Compact Web)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="audioSampleRateSelect">Sample Rate</label>
+                <select id="audioSampleRateSelect" class="form-select">
+                  <option value="" selected>Original Sample Rate</option>
+                  <option value="48000">48,000 Hz (Pro Video / Studio)</option>
+                  <option value="44100">44,100 Hz (Audio CD Standard)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="audioChannelsSelect">Channels</label>
+                <select id="audioChannelsSelect" class="form-select">
+                  <option value="2" selected>Stereo (2 Channels)</option>
+                  <option value="1">Mono (1 Channel)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- GIF Specific Options Section -->
+          <div class="options-panel-section hidden" id="gifOptionsSection">
+            <h4 class="section-title"><i data-lucide="image"></i> GIF Settings</h4>
+            <div class="settings-grid">
+              <div class="form-group">
+                <label class="form-label" for="gifWidthSelect">GIF Width</label>
+                <select id="gifWidthSelect" class="form-select">
+                  <option value="480" selected>480px (Optimal Balance)</option>
+                  <option value="640">640px (High Res)</option>
+                  <option value="320">320px (Lightweight / Chat)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="gifFpsSelect">Animation FPS</label>
+                <select id="gifFpsSelect" class="form-select">
+                  <option value="15" selected>15 FPS (Recommended)</option>
+                  <option value="20">20 FPS (Fluid)</option>
+                  <option value="10">10 FPS (Low File Size)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Privacy & Terms Section -->
+          <div class="security-privacy-box">
+            <label class="checkbox-container">
+              <input type="checkbox" id="stripMetadataCheckbox" checked>
+              <span class="custom-checkbox"></span>
+              <span class="checkbox-label">
+                <strong>Strip EXIF & Location Metadata</strong>
+                <small>Removes GPS coordinates, camera models, and author tags from media</small>
+              </span>
+            </label>
+
+            <label class="checkbox-container">
+              <input type="checkbox" id="tosAgreementCheckbox" required>
+              <span class="custom-checkbox"></span>
+              <span class="checkbox-label">
+                <strong>Terms of Service & Copyright Confirmation</strong>
+                <small>I certify that I own this media or possess explicit permission to convert it. No DRM circumvention.</small>
+              </span>
+            </label>
+          </div>
+
+          <!-- Convert Action Trigger -->
+          <div class="action-footer">
+            <button type="button" class="btn btn-primary btn-convert" id="startConversionBtn" disabled>
+              <i data-lucide="cpu"></i>
+              <span>Start Conversion</span>
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Real-time Progress & Status Overlay / Modal -->
+    <div class="job-status-overlay hidden" id="jobStatusOverlay">
+      <div class="job-status-card">
+        <div class="status-card-header">
+          <div class="pulse-indicator"></div>
+          <h3 id="jobStatusTitle">Transcoding Media...</h3>
+          <button type="button" class="btn-cancel-job" id="cancelJobBtn" title="Cancel conversion">
+            <i data-lucide="ban"></i> Cancel Job
+          </button>
+        </div>
+
+        <div class="status-card-body">
+          <div class="circle-progress-wrapper">
+            <svg class="progress-ring" width="160" height="160">
+              <circle class="progress-ring-circle-bg" stroke="rgba(255,255,255,0.08)" stroke-width="10" fill="transparent" r="70" cx="80" cy="80"/>
+              <circle class="progress-ring-circle" id="progressRingCircle" stroke="url(#progressGradient)" stroke-width="10" stroke-linecap="round" fill="transparent" r="70" cx="80" cy="80"/>
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366f1" />
+                  <stop offset="50%" stop-color="#8b5cf6" />
+                  <stop offset="100%" stop-color="#06b6d4" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="circle-inner-text">
+              <span class="circle-percent" id="circlePercentText">0%</span>
+              <span class="circle-sub" id="circleStageSub">Queued</span>
+            </div>
+          </div>
+
+          <div class="live-metrics-grid">
+            <div class="metric-card">
+              <span class="metric-label">Processing Speed</span>
+              <span class="metric-val" id="metricSpeedVal">--</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">FPS</span>
+              <span class="metric-val" id="metricFpsVal">--</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Time Elapsed</span>
+              <span class="metric-val" id="metricElapsedVal">00:00</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Estimated Remaining</span>
+              <span class="metric-val" id="metricEtaVal">Calculating...</span>
+            </div>
+          </div>
+
+          <p class="live-status-desc" id="liveStatusDesc">Preparing conversion sandbox...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Result Hub Modal -->
+    <div class="download-hub-overlay hidden" id="downloadHubOverlay">
+      <div class="download-hub-card">
+        <div class="hub-header">
+          <div class="success-badge">
+            <i data-lucide="check-circle-2"></i>
+          </div>
+          <h3>Conversion Completed Successfully!</h3>
+          <p>Your media has been encoded with professional FFmpeg precision.</p>
+        </div>
+
+        <div class="hub-preview-area">
+          <video id="convertedVideoPlayer" class="result-player hidden" controls playsinline></video>
+          <audio id="convertedAudioPlayer" class="result-player hidden" controls></audio>
+          <img id="convertedGifViewer" class="result-gif-viewer hidden" alt="Converted animated GIF">
+        </div>
+
+        <div class="hub-details-grid">
+          <div class="hub-detail-box">
+            <span class="lbl">Output Format</span>
+            <span class="val highlight" id="resultFormatText">MP4</span>
+          </div>
+          <div class="hub-detail-box">
+            <span class="lbl">Final Size</span>
+            <span class="val" id="resultSizeText">-- MB</span>
+          </div>
+          <div class="hub-detail-box">
+            <span class="lbl">Link Expiry</span>
+            <span class="val expiry-countdown" id="resultExpiryCountdown">59:59</span>
+          </div>
+        </div>
+
+        <div class="hub-action-buttons">
+          <a id="downloadFileBtn" href="#" class="btn btn-primary btn-large-download" download>
+            <i data-lucide="download"></i> Download Converted Media
+          </a>
+          <button type="button" class="btn btn-secondary" id="copyDownloadLinkBtn">
+            <i data-lucide="copy"></i> Copy Direct Link
+          </button>
+          <button type="button" class="btn btn-subtle" id="convertAnotherBtn">
+            <i data-lucide="rotate-ccw"></i> Convert Another File
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <p>Omniconvert Media Suite • Server-Side FFmpeg Worker Architecture • Auto-Purge Expiry (1 Hour TTL)</p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

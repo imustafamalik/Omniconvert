@@ -1,0 +1,8 @@
+fastapi>=0.115.0
+uvicorn>=0.30.0
+websockets>=13.0
+python-multipart>=0.0.12
+filetype>=1.2.0
+aiofiles>=24.1.0
+imageio-ffmpeg>=0.5.1
+yt-dlp>=2024.8.6

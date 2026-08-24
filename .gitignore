@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Storage & Temporary Files
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/converted/*
+!storage/converted/.gitkeep
+bin/
+*.bin
+*.mp4
+*.mp3
+*.wav
+*.gif
+*.webm
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
