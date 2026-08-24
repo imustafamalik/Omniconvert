@@ -1,17 +1,32 @@
-import os
+import tempfile
 from pathlib import Path
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent
-STORAGE_DIR = BASE_DIR / "storage"
-UPLOAD_DIR = STORAGE_DIR / "uploads"
-CONVERTED_DIR = STORAGE_DIR / "converted"
 STATIC_DIR = BASE_DIR / "static"
 
-# Ensure directories exist
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-CONVERTED_DIR.mkdir(parents=True, exist_ok=True)
-STATIC_DIR.mkdir(parents=True, exist_ok=True)
+# Handle Serverless / Read-only filesystems (Vercel / Lambda)
+IS_VERCEL = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+
+if IS_VERCEL:
+    TMP_DIR = Path(tempfile.gettempdir())
+    STORAGE_DIR = TMP_DIR / "omniconvert_storage"
+else:
+    STORAGE_DIR = BASE_DIR / "storage"
+
+UPLOAD_DIR = STORAGE_DIR / "uploads"
+CONVERTED_DIR = STORAGE_DIR / "converted"
+
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    CONVERTED_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    TMP_DIR = Path(tempfile.gettempdir())
+    STORAGE_DIR = TMP_DIR / "omniconvert_storage"
+    UPLOAD_DIR = STORAGE_DIR / "uploads"
+    CONVERTED_DIR = STORAGE_DIR / "converted"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    CONVERTED_DIR.mkdir(parents=True, exist_ok=True)
 
 # Application Limits & Settings
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", 500))

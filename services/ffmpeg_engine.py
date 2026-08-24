@@ -6,10 +6,19 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
 
-from config import BASE_DIR
+import tempfile
+from config import BASE_DIR, IS_VERCEL
 
-BIN_DIR = BASE_DIR / "bin"
-BIN_DIR.mkdir(parents=True, exist_ok=True)
+if IS_VERCEL:
+    BIN_DIR = Path(tempfile.gettempdir()) / "bin"
+else:
+    BIN_DIR = BASE_DIR / "bin"
+
+try:
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    BIN_DIR = Path(tempfile.gettempdir()) / "bin"
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
 
 try:
     import imageio_ffmpeg
@@ -25,9 +34,12 @@ except Exception:
     FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
 # Ensure bin directory is in system PATH
-bin_dir_str = str(BIN_DIR.resolve())
-if bin_dir_str not in os.environ.get("PATH", ""):
-    os.environ["PATH"] = bin_dir_str + os.pathsep + os.environ.get("PATH", "")
+try:
+    bin_dir_str = str(BIN_DIR.resolve())
+    if bin_dir_str not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = bin_dir_str + os.pathsep + os.environ.get("PATH", "")
+except Exception:
+    pass
 
 
 def get_ffmpeg_binary() -> str:
