@@ -1,0 +1,12 @@
+# Ignore backend files for Vercel static deployment
+main.py
+config.py
+requirements.txt
+services/
+storage/
+bin/
+test_converter.py
+test_e2e_http.py
+Dockerfile
+docker-compose.yml
+Procfile
