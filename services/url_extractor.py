@@ -7,19 +7,37 @@ from config import UPLOAD_DIR, MAX_DURATION_SECONDS
 from services.ffmpeg_engine import get_ffmpeg_binary
 
 
+def get_base_ydl_opts() -> Dict[str, Any]:
+    """Returns resilient base options for yt-dlp with mobile client rotation."""
+    return {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "nocheckcertificate": True,
+        "geo_bypass": True,
+        "ffmpeg_location": get_ffmpeg_binary(),
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "mweb", "web"],
+            }
+        },
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+    }
+
+
 def extract_url_metadata(url: str) -> Dict[str, Any]:
     """
     Extracts metadata from YouTube, Vimeo, TikTok, SoundCloud, Twitter/X, Reddit, or direct URLs.
     Does NOT download the file yet.
     """
-    ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
+    ydl_opts = get_base_ydl_opts()
+    ydl_opts.update({
         "skip_download": True,
         "extract_flat": False,
-        "noplaylist": True,
-        "ffmpeg_location": get_ffmpeg_binary(),
-    }
+    })
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -80,10 +98,14 @@ def extract_url_metadata(url: str) -> Dict[str, Any]:
 
     except Exception as e:
         err_msg = str(e)
-        if "DRM" in err_msg or "protected" in err_msg.lower():
+        if "unavailable" in err_msg.lower():
+            err_msg = "This video is unavailable or has been removed from YouTube."
+        elif "DRM" in err_msg or "protected" in err_msg.lower():
             err_msg = "Content is DRM-protected and cannot be downloaded/processed."
-        elif "Private video" in err_msg:
-            err_msg = "This video is private or unavailable."
+        elif "Private video" in err_msg or "private" in err_msg.lower():
+            err_msg = "This video is set to private by the creator."
+        elif "Sign in" in err_msg or "bot" in err_msg.lower():
+            err_msg = "YouTube bot verification triggered. Please try another video or direct media link."
         return {
             "valid": False,
             "url": url,
@@ -137,16 +159,13 @@ async def download_source_url(
                     "eta_seconds": eta
                 })
 
-    ydl_opts = {
+    ydl_opts = get_base_ydl_opts()
+    ydl_opts.update({
         "outtmpl": output_template,
         "format": fmt_string,
         "progress_hooks": [progress_hook],
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
         "overwrites": True,
-        "ffmpeg_location": get_ffmpeg_binary(),
-    }
+    })
 
     loop = asyncio.get_running_loop()
 
