@@ -322,7 +322,9 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/")
 async def serve_index():
-    index_path = STATIC_DIR / "index.html"
+    index_path = BASE_DIR / "index.html"
+    if not index_path.exists():
+        index_path = STATIC_DIR / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Frontend index.html not found.")
     return FileResponse(index_path)

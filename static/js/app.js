@@ -8,6 +8,27 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
   }
 
+  // API Base Resolution (supports both local server and GitHub Pages / static hosting)
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const customBackend = localStorage.getItem('omniconvert_backend_url');
+  const API_BASE = isLocalHost ? '' : (customBackend || 'http://127.0.0.1:8000');
+
+  function getApiUrl(path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (!API_BASE) return path;
+    return `${API_BASE.replace(/\/$/, '')}${path}`;
+  }
+
+  function getWsUrl(path) {
+    if (API_BASE) {
+      const isHttps = API_BASE.startsWith('https:');
+      const host = API_BASE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      return `${isHttps ? 'wss:' : 'ws:'}//${host}${path}`;
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}${path}`;
+  }
+
   // State Management
   const state = {
     activeSourceType: 'upload', // 'upload' | 'url'
@@ -224,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadProgressVal.textContent = '0%';
 
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload', true);
+    xhr.open('POST', getApiUrl('/api/upload'), true);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) {
@@ -300,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.lucide) lucide.createIcons();
 
     try {
-      const res = await fetch('/api/url/inspect', {
+      const res = await fetch(getApiUrl('/api/url/inspect'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url, tos_agreed: true })
@@ -490,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startConversionBtn.disabled = true;
 
     try {
-      const res = await fetch('/api/jobs/create', {
+      const res = await fetch(getApiUrl('/api/jobs/create'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -547,8 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Real-Time WebSocket & Polling Tracking Engine ---
   function initJobTracking(jobId) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/${jobId}`;
+    const wsUrl = getWsUrl(`/api/ws/${jobId}`);
 
     try {
       state.jobWs = new WebSocket(wsUrl);
@@ -576,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.pollingTimer) return;
     state.pollingTimer = setInterval(async () => {
       try {
-        const res = await fetch(`/api/jobs/${jobId}`);
+        const res = await fetch(getApiUrl(`/api/jobs/${jobId}`));
         if (res.ok) {
           const job = await res.json();
           updateProgressUI(job);
@@ -600,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cancelJobBtn.addEventListener('click', async () => {
     if (!state.activeJobId) return;
     try {
-      await fetch(`/api/jobs/${state.activeJobId}/cancel`, { method: 'POST' });
+      await fetch(getApiUrl(`/api/jobs/${state.activeJobId}/cancel`), { method: 'POST' });
       showToast('Cancellation requested.', 'info');
     } catch (e) {}
   });
@@ -615,7 +635,8 @@ document.addEventListener('DOMContentLoaded', () => {
     convertedAudioPlayer.classList.add('hidden');
     convertedGifViewer.classList.add('hidden');
 
-    downloadFileBtn.href = job.download_url;
+    const downloadFullUrl = getApiUrl(job.download_url);
+    downloadFileBtn.href = downloadFullUrl;
     downloadFileBtn.setAttribute('download', job.output_filename || 'media');
 
     // Converted Preview
@@ -624,13 +645,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const isAudio = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a'].includes(job.target_format);
 
     if (isGif) {
-      convertedGifViewer.src = job.download_url;
+      convertedGifViewer.src = downloadFullUrl;
       convertedGifViewer.classList.remove('hidden');
     } else if (isVideo) {
-      convertedVideoPlayer.src = job.download_url;
+      convertedVideoPlayer.src = downloadFullUrl;
       convertedVideoPlayer.classList.remove('hidden');
     } else if (isAudio) {
-      convertedAudioPlayer.src = job.download_url;
+      convertedAudioPlayer.src = downloadFullUrl;
       convertedAudioPlayer.classList.remove('hidden');
     }
 
@@ -652,7 +673,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup Copy Link
     copyDownloadLinkBtn.onclick = () => {
-      const fullUrl = `${window.location.origin}${job.download_url}`;
+      const origin = API_BASE || window.location.origin;
+      const fullUrl = `${origin.replace(/\/$/, '')}${job.download_url}`;
       navigator.clipboard.writeText(fullUrl).then(() => {
         showToast('Signed download link copied to clipboard!', 'success');
       });
