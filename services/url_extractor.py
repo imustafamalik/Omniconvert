@@ -28,11 +28,67 @@ def get_base_ydl_opts() -> Dict[str, Any]:
     }
 
 
+import re
+import subprocess
+import urllib.request
+import urllib.parse
+
+
+def probe_direct_url_stream(url: str) -> Optional[Dict[str, Any]]:
+    """Probes direct media streams (MP4, MP3, WebM, WAV, etc.) using FFmpeg directly."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        raw_name = parsed.path.split('/')[-1] or "web_stream.mp4"
+        if not re.search(r'\.(mp4|webm|mov|mkv|avi|mp3|wav|flac|aac|ogg|m4a)$', raw_name, re.I):
+            raw_name = "media_stream.mp4"
+
+        ff_bin = get_ffmpeg_binary()
+        cmd = [ff_bin, "-hide_banner", "-i", url]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
+        output = p.stderr
+
+        dur_match = re.search(r'Duration:\s*(\d+):(\d+):(\d+\.\d+)', output)
+        duration = 0.0
+        if dur_match:
+            h, m, s = dur_match.groups()
+            duration = int(h) * 3600 + int(m) * 60 + float(s)
+
+        has_video = 'Video:' in output
+        has_audio = 'Audio:' in output
+
+        if not has_video and not has_audio and duration == 0:
+            return None
+
+        return {
+            "valid": True,
+            "url": url,
+            "title": raw_name,
+            "uploader": parsed.netloc or "Direct Web Media",
+            "duration": duration,
+            "thumbnail": None,
+            "description": f"Direct media stream from {parsed.netloc}",
+            "available_resolutions": ["Original", "1080p", "720p", "480p"],
+            "has_video": has_video,
+            "has_audio": has_audio or not has_video,
+            "extractor": "Direct Stream",
+            "error": None
+        }
+    except Exception:
+        return None
+
+
 def extract_url_metadata(url: str) -> Dict[str, Any]:
     """
     Extracts metadata from YouTube, Vimeo, TikTok, SoundCloud, Twitter/X, Reddit, or direct URLs.
     Does NOT download the file yet.
     """
+    # 1. First check if it's a direct media URL
+    if re.search(r'\.(mp4|webm|mov|mkv|avi|mp3|wav|flac|aac|ogg|m4a)(\?.*)?$', url, re.I):
+        direct_info = probe_direct_url_stream(url)
+        if direct_info:
+            return direct_info
+
+    # 2. Try yt-dlp extractor
     ydl_opts = get_base_ydl_opts()
     ydl_opts.update({
         "skip_download": True,
@@ -97,15 +153,20 @@ def extract_url_metadata(url: str) -> Dict[str, Any]:
             }
 
     except Exception as e:
+        # Fallback to direct stream probe
+        direct_info = probe_direct_url_stream(url)
+        if direct_info:
+            return direct_info
+
         err_msg = str(e)
         if "unavailable" in err_msg.lower():
-            err_msg = "This video is unavailable or has been removed from YouTube."
+            err_msg = "This video is unavailable or has been removed."
         elif "DRM" in err_msg or "protected" in err_msg.lower():
             err_msg = "Content is DRM-protected and cannot be downloaded/processed."
         elif "Private video" in err_msg or "private" in err_msg.lower():
             err_msg = "This video is set to private by the creator."
         elif "Sign in" in err_msg or "bot" in err_msg.lower():
-            err_msg = "YouTube bot verification triggered. Please try another video or direct media link."
+            err_msg = "YouTube bot challenge active on this video. Try our 1-Click Sample Stream or a direct media link."
         return {
             "valid": False,
             "url": url,
@@ -123,7 +184,7 @@ async def download_source_url(
 ) -> Path:
     """
     Downloads media from third-party URL into storage/uploads/ asynchronously.
-    Selects optimal stream (audio-only or requested resolution) to minimize transfer time.
+    Supports both yt-dlp extraction and direct HTTP stream downloading.
     """
     output_template = str(UPLOAD_DIR / f"{target_filename_base}.%(ext)s")
 
@@ -169,11 +230,44 @@ async def download_source_url(
 
     loop = asyncio.get_running_loop()
 
-    def run_ydl():
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+    try:
+        def run_ydl():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
 
-    await loop.run_in_executor(None, run_ydl)
+        await loop.run_in_executor(None, run_ydl)
+    except Exception:
+        # Fallback to direct HTTP stream download
+        ext = "mp4"
+        match = re.search(r'\.(mp4|webm|mov|mkv|avi|mp3|wav|flac|aac|ogg|m4a)', url, re.I)
+        if match:
+            ext = match.group(1).lower()
+
+        direct_dest = UPLOAD_DIR / f"{target_filename_base}.{ext}"
+        
+        def run_direct_download():
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=30) as resp, open(direct_dest, 'wb') as out_f:
+                total = int(resp.headers.get('Content-Length', 0))
+                downloaded = 0
+                while True:
+                    if cancel_event and cancel_event.is_set():
+                        raise Exception("Download cancelled by user.")
+                    chunk = resp.read(64 * 1024)
+                    if not chunk:
+                        break
+                    out_f.write(chunk)
+                    downloaded += len(chunk)
+                    if on_progress and total > 0:
+                        pct = (downloaded / total * 100)
+                        on_progress({
+                            "stage": "Downloading direct stream...",
+                            "percent": round(pct, 1),
+                            "speed": "Fast",
+                            "eta_seconds": None
+                        })
+
+        await loop.run_in_executor(None, run_direct_download)
 
     # Find the downloaded file
     matching_files = list(UPLOAD_DIR.glob(f"{target_filename_base}.*"))

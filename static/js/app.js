@@ -526,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (loadDemoUrlBtn) {
     loadDemoUrlBtn.addEventListener('click', () => {
-      urlInput.value = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'; // "Me at the zoo"
+      urlInput.value = 'https://www.w3schools.com/html/mov_bbb.mp4';
       handleUrlFetch();
     });
   }
@@ -583,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await handleUrlFetch();
         if (!state.sourceMetadata) return;
       } else {
-        urlInput.value = 'https://www.youtube.com/watch?v=jNQXAC9IVRw';
+        urlInput.value = 'https://www.w3schools.com/html/mov_bbb.mp4';
         await handleUrlFetch();
         if (!state.sourceMetadata) return;
       }
