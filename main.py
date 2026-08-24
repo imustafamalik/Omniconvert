@@ -18,7 +18,8 @@ from pydantic import BaseModel, Field
 
 from config import (
     UPLOAD_DIR, CONVERTED_DIR, STATIC_DIR, MAX_UPLOAD_SIZE_BYTES,
-    MAX_UPLOAD_SIZE_MB, SUPPORTED_OUTPUT_FORMATS, FILE_TTL_SECONDS
+    UPLOAD_DIR, CONVERTED_DIR, STATIC_DIR, BASE_DIR, MAX_UPLOAD_SIZE_BYTES,
+    MAX_UPLOAD_SIZE_MB, SUPPORTED_OUTPUT_FORMATS, FILE_TTL_SECONDS, IS_VERCEL
 )
 from services.file_sniffer import sniff_file_header
 from services.ffmpeg_engine import probe_media_file, get_ffmpeg_binary
@@ -36,15 +37,22 @@ logger = logging.getLogger("OmniconvertAPI")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: start worker pool and cleanup daemon
-    logger.info("Initializing Omniconvert server...")
-    await queue_manager.start_workers()
-    cleanup_task = asyncio.create_task(run_periodic_cleanup())
+    cleanup_task = None
+    if not IS_VERCEL:
+        logger.info("Initializing Omniconvert server...")
+        try:
+            await queue_manager.start_workers()
+            cleanup_task = asyncio.create_task(run_periodic_cleanup())
+        except Exception as e:
+            logger.warning(f"Could not start background queue on this runtime: {e}")
     yield
     # Shutdown
-    logger.info("Shutting down Omniconvert server...")
-    cleanup_task.cancel()
-    await queue_manager.stop_workers()
+    if cleanup_task:
+        cleanup_task.cancel()
+        try:
+            await queue_manager.stop_workers()
+        except Exception:
+            pass
 
 
 app = FastAPI(
