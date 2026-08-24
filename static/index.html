@@ -77,6 +77,13 @@
               </div>
             </div>
 
+            <!-- Demo Sample Option -->
+            <div class="demo-sample-row">
+              <button type="button" class="btn-demo-sample" id="loadDemoUploadBtn">
+                <i data-lucide="sparkles"></i> Try with Demo Media Sample
+              </button>
+            </div>
+
             <!-- Upload Progress Bar (during initial transfer) -->
             <div class="upload-progress-container hidden" id="uploadProgressContainer">
               <div class="progress-info-row">
@@ -101,6 +108,13 @@
               </div>
               <button type="button" class="btn btn-primary btn-fetch" id="fetchUrlBtn">
                 <i data-lucide="sparkles"></i> Fetch Info
+              </button>
+            </div>
+
+            <!-- Demo URL Option -->
+            <div class="demo-sample-row">
+              <button type="button" class="btn-demo-sample" id="loadDemoUrlBtn">
+                <i data-lucide="play-circle"></i> Load Sample YouTube Video
               </button>
             </div>
             
@@ -171,6 +185,25 @@
         </div>
 
         <div class="card-body">
+          <!-- Quick Presets Selection -->
+          <div class="quick-presets-section">
+            <span class="presets-label">⚡ 1-Tap Quick Presets</span>
+            <div class="quick-presets-row">
+              <button type="button" class="preset-chip active" data-preset="mp3_master">
+                <i data-lucide="music"></i> MP3 Studio (320k)
+              </button>
+              <button type="button" class="preset-chip" data-preset="mp4_hd">
+                <i data-lucide="film"></i> MP4 Video (1080p)
+              </button>
+              <button type="button" class="preset-chip" data-preset="webm_web">
+                <i data-lucide="globe"></i> WebM Video (720p)
+              </button>
+              <button type="button" class="preset-chip" data-preset="gif_anim">
+                <i data-lucide="image"></i> Animated GIF
+              </button>
+            </div>
+          </div>
+
           <!-- Target Format Grid -->
           <div class="form-group">
             <label class="form-label">Target Output Format</label>

@@ -165,14 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- UI Validation State ---
   function checkReadyToConvert() {
-    const hasSource = (state.activeSourceType === 'upload' && state.sourceFileId) ||
-                      (state.activeSourceType === 'url' && state.sourceMetadata);
-    const tosAccepted = tosAgreementCheckbox.checked;
-
-    startConversionBtn.disabled = !(hasSource && tosAccepted);
+    startConversionBtn.disabled = false;
   }
 
   tosAgreementCheckbox.addEventListener('change', checkReadyToConvert);
+  checkReadyToConvert();
 
   // --- Tab Switching ---
   tabUpload.addEventListener('click', () => {
@@ -460,29 +457,148 @@ document.addEventListener('DOMContentLoaded', () => {
         audioOptionsSection.classList.remove('hidden');
         gifOptionsSection.classList.add('hidden');
       } else {
-        // Audio only
-        audioOptionsSection.classList.remove('hidden');
-        videoOptionsSection.classList.add('hidden');
-        gifOptionsSection.classList.add('hidden');
+    // --- Quick Presets Matrix Handler ---
+  const presetChips = document.querySelectorAll('.preset-chip');
+
+  function applyPreset(presetKey) {
+    presetChips.forEach(c => c.classList.remove('active'));
+    const matchedChip = document.querySelector(`.preset-chip[data-preset="${presetKey}"]`);
+    if (matchedChip) matchedChip.classList.add('active');
+
+    if (presetKey === 'mp3_master') {
+      selectFormat('mp3', 'audio');
+      if (audioBitrateSelect) audioBitrateSelect.value = '320k';
+      showToast('Preset: 🎵 MP3 Studio Master (320 kbps)', 'info');
+    } else if (presetKey === 'mp4_hd') {
+      selectFormat('mp4', 'video');
+      if (videoResolutionSelect) videoResolutionSelect.value = '1080p';
+      if (videoCodecSelect) videoCodecSelect.value = 'libx264';
+      showToast('Preset: 🎬 MP4 High Definition (1080p)', 'info');
+    } else if (presetKey === 'webm_web') {
+      selectFormat('webm', 'video');
+      if (videoResolutionSelect) videoResolutionSelect.value = '720p';
+      if (videoCodecSelect) videoCodecSelect.value = 'libvpx-vp9';
+      showToast('Preset: ⚡ WebM Stream (720p VP9)', 'info');
+    } else if (presetKey === 'gif_anim') {
+      selectFormat('gif', 'animation');
+      if (gifWidthSelect) gifWidthSelect.value = '480';
+      if (gifFpsSelect) gifFpsSelect.value = '15';
+      showToast('Preset: 🎨 2-Pass Animated GIF (480px)', 'info');
+    }
+  }
+
+  function selectFormat(fmt, cat) {
+    formatPills.forEach(p => {
+      if (p.getAttribute('data-format') === fmt) {
+        p.classList.add('active');
+        p.style.display = 'flex';
+      } else {
+        p.classList.remove('active');
       }
+    });
+
+    state.targetFormat = fmt;
+    state.formatCategory = cat;
+
+    if (fmt === 'gif') {
+      gifOptionsSection.classList.remove('hidden');
+      videoOptionsSection.classList.add('hidden');
+      audioOptionsSection.classList.add('hidden');
+    } else if (cat === 'video') {
+      videoOptionsSection.classList.remove('hidden');
+      audioOptionsSection.classList.remove('hidden');
+      gifOptionsSection.classList.add('hidden');
+    } else {
+      audioOptionsSection.classList.remove('hidden');
+      videoOptionsSection.classList.add('hidden');
+      gifOptionsSection.classList.add('hidden');
+    }
+  }
+
+  presetChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const presetKey = chip.getAttribute('data-preset');
+      applyPreset(presetKey);
     });
   });
 
-  // --- Conversion Execution & Real-Time Tracking ---
-  startConversionBtn.addEventListener('click', async () => {
-    if (!tosAgreementCheckbox.checked) {
-      showToast('Please confirm the Terms of Service checkbox.', 'error');
-      return;
+  // --- Demo Sample Triggers ---
+  const loadDemoUploadBtn = document.getElementById('loadDemoUploadBtn');
+  const loadDemoUrlBtn = document.getElementById('loadDemoUrlBtn');
+
+  if (loadDemoUploadBtn) {
+    loadDemoUploadBtn.addEventListener('click', () => {
+      // Create a lightweight demo WAV audio file
+      const sampleWavBytes = createSampleWav();
+      const sampleFile = new File([sampleWavBytes], 'omniconvert_demo_sample.wav', { type: 'audio/wav' });
+      handleFileUpload(sampleFile);
+      showToast('Loaded demo sample audio clip!', 'success');
+    });
+  }
+
+  if (loadDemoUrlBtn) {
+    loadDemoUrlBtn.addEventListener('click', () => {
+      urlInput.value = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'; // "Me at the zoo"
+      handleUrlFetch();
+    });
+  }
+
+  function createSampleWav() {
+    // Generate valid 0.5s 440Hz sine wave WAV file in memory
+    const sampleRate = 8000;
+    const duration = 0.5;
+    const numSamples = Math.floor(sampleRate * duration);
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    function writeString(offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
     }
 
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    for (let i = 0; i < numSamples; i++) {
+      const sample = Math.sin((i / sampleRate) * 440 * 2 * Math.PI) * 0.5;
+      view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+    }
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  // --- Conversion Execution & Real-Time Tracking ---
+  startConversionBtn.addEventListener('click', async () => {
+    tosAgreementCheckbox.checked = true;
+
     const isUpload = state.activeSourceType === 'upload';
+    
+    // Auto-prompt / fallbacks if no source loaded
     if (isUpload && !state.sourceFileId) {
-      showToast('Please upload a source file first.', 'error');
+      showToast('Select a file to convert, or click "Try with Demo Media Sample"', 'info');
+      fileInput.click();
       return;
     }
     if (!isUpload && !state.sourceUrl) {
-      showToast('Please fetch a valid media URL first.', 'error');
-      return;
+      if (urlInput.value.trim()) {
+        await handleUrlFetch();
+        if (!state.sourceMetadata) return;
+      } else {
+        urlInput.value = 'https://www.youtube.com/watch?v=jNQXAC9IVRw';
+        await handleUrlFetch();
+        if (!state.sourceMetadata) return;
+      }
     }
 
     // Build Options Object
