@@ -439,25 +439,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   formatPills.forEach(pill => {
     pill.addEventListener('click', () => {
-      formatPills.forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-
       const fmt = pill.getAttribute('data-format');
       const cat = pill.getAttribute('data-category');
-      state.targetFormat = fmt;
-      state.formatCategory = cat;
+      selectFormat(fmt, cat);
+    });
+  });
 
-      // Toggle Options Sections
-      if (fmt === 'gif') {
-        gifOptionsSection.classList.remove('hidden');
-        videoOptionsSection.classList.add('hidden');
-        audioOptionsSection.classList.add('hidden');
-      } else if (cat === 'video') {
-        videoOptionsSection.classList.remove('hidden');
-        audioOptionsSection.classList.remove('hidden');
-        gifOptionsSection.classList.add('hidden');
-      } else {
-    // --- Quick Presets Matrix Handler ---
+  // --- Quick Presets Matrix Handler ---
   const presetChips = document.querySelectorAll('.preset-chip');
 
   function applyPreset(presetKey) {
