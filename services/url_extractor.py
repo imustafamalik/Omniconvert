@@ -8,8 +8,10 @@ from services.ffmpeg_engine import get_ffmpeg_binary
 
 
 def get_base_ydl_opts() -> Dict[str, Any]:
-    """Returns resilient base options for yt-dlp with mobile client rotation."""
-    return {
+    """Returns resilient base options for yt-dlp with mobile client rotation and optional cookies."""
+    from config import BASE_DIR
+    cookie_file = BASE_DIR / "cookies.txt"
+    opts = {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
@@ -26,6 +28,9 @@ def get_base_ydl_opts() -> Dict[str, Any]:
             "Accept-Language": "en-US,en;q=0.9",
         }
     }
+    if cookie_file.exists():
+        opts["cookiefile"] = str(cookie_file)
+    return opts
 
 
 import re
